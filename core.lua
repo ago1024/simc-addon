@@ -14,7 +14,7 @@ SimcLDB = LibStub("LibDataBroker-1.1"):NewDataObject("SimulationCraft", {
     if SimcFrame and SimcFrame:IsShown() then
       SimcFrame:Hide()
     else
-      Simulationcraft:PrintSimcProfile(false, false)
+      Simulationcraft:PrintSimcProfile(false, false, false)
     end
   end,
   OnTooltipShow = function(tt)
@@ -123,6 +123,7 @@ function Simulationcraft:HandleChatCommand(input)
 
   local debugOutput = false
   local noBags = false
+  local simBags = false;
   local links = getLinks(input)
 
   for _, arg in ipairs(args) do
@@ -130,6 +131,8 @@ function Simulationcraft:HandleChatCommand(input)
       debugOutput = true
     elseif arg == 'nobag' or arg == 'nobags' or arg == 'nb' then
       noBags = true
+    elseif arg == 'simbag' or arg == 'simbags' or arg == 'sb' then
+      simBags = true
     elseif arg == 'minimap' then
       self.db.profile.minimap.hide = not self.db.profile.minimap.hide
       DEFAULT_CHAT_FRAME:AddMessage("SimulationCraft: Minimap button is now " .. (self.db.profile.minimap.hide and "hidden" or "shown"))
@@ -138,7 +141,7 @@ function Simulationcraft:HandleChatCommand(input)
     end
   end
 
-  self:PrintSimcProfile(debugOutput, noBags, links)
+  self:PrintSimcProfile(debugOutput, noBags, simBags, links)
 end
 
 
@@ -710,7 +713,7 @@ function Simulationcraft:GetMainFrame(text)
 end
 
 -- This is the workhorse function that constructs the profile
-function Simulationcraft:PrintSimcProfile(debugOutput, noBags, links)
+function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, links)
   -- addon metadata
   local versionComment = '# SimC Addon ' .. GetAddOnMetadata('Simulationcraft', 'Version')
   local simcVersionWarning = '# Requires SimulationCraft 901-01 or newer'
@@ -915,8 +918,13 @@ function Simulationcraft:PrintSimcProfile(debugOutput, noBags, links)
     simulationcraftProfile = simulationcraftProfile .. '### Gear from Bags\n'
     for i=1, #bagItems do
       simulationcraftProfile = simulationcraftProfile .. '#\n'
-      simulationcraftProfile = simulationcraftProfile .. '# ' .. bagItems[i].name .. '\n'
-      simulationcraftProfile = simulationcraftProfile .. '# ' .. bagItems[i].string .. '\n'
+      if simBags == false then
+        simulationcraftProfile = simulationcraftProfile .. '# ' .. bagItems[i].name .. '\n'
+        simulationcraftProfile = simulationcraftProfile .. '# ' .. bagItems[i].string .. '\n'
+      else
+        simulationcraftProfile = simulationcraftProfile .. 'copy="' .. bagItems[i].name .. '",' .. playerName .. '\n'
+        simulationcraftProfile = simulationcraftProfile .. '' .. bagItems[i].string .. '\n'
+      end
     end
   end
 
