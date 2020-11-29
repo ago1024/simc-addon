@@ -943,7 +943,7 @@ function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, links)
         simulationcraftProfile = simulationcraftProfile .. '# ' .. bagItems[i].name .. '\n'
         simulationcraftProfile = simulationcraftProfile .. '# ' .. bagItems[i].string .. '\n'
       else
-        simulationcraftProfile = simulationcraftProfile .. 'copy="' .. bagItems[i].name .. '",' .. playerName .. '\n'
+        simulationcraftProfile = simulationcraftProfile .. 'copy="' .. gsub(bagItems[i].name, ',', '') .. '",' .. playerName .. '\n'
         simulationcraftProfile = simulationcraftProfile .. '' .. bagItems[i].string .. '\n'
       end
     end
