@@ -481,10 +481,20 @@ function Simulationcraft:GetBagItemStrings()
 
             -- find all equippable, non-artifact items
             if IsEquippableItem(itemLink) and quality ~= 6 then
-              bagItems[#bagItems + 1] = {
-                string = GetItemStringFromItemLink(slotNum, itemLink, itemLoc, false),
-                name = name .. ' (' .. level .. ')'
-              }
+              local slots = { slotNum }
+              if slotNum == 13 or slotNum == 15 then
+                slots = { slotNum, slotNum + 1 }
+              end
+              for i,slotNum in ipairs(slots) do
+                local altText = ''
+                if i ~= 1 then
+                  altText = ' slot ' .. i
+                end
+                bagItems[#bagItems + 1] = {
+                  string = GetItemStringFromItemLink(slotNum, itemLink, itemLoc, false),
+                  name = name .. ' (' .. level .. ')' .. altText
+                }
+              end
             end
           end
         end
