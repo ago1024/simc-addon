@@ -474,6 +474,7 @@ function Simulationcraft:GetBagItemStrings()
                   altText = ' slot ' .. i
                 end
                 bagItems[#bagItems + 1] = {
+                  slot2 = i ~= 1,
                   string = GetItemStringFromItemLink(slotNum, itemLink, itemLoc, false),
                   name = name .. (level and ' (' .. level .. ')' or '') .. altText
                 }
@@ -824,14 +825,15 @@ function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, links)
       simulationcraftProfile = simulationcraftProfile .. '\n'
       simulationcraftProfile = simulationcraftProfile .. '### Gear from Bags\n'
       for i=1, #bagItems do
-        simulationcraftProfile = simulationcraftProfile .. '#\n'
-        if simBags == false then
+        if simBags == false and bagItems[i].slot2 == false then
+          simulationcraftProfile = simulationcraftProfile .. '#\n'
           if bagItems[i].name then
             simulationcraftProfile = simulationcraftProfile .. '# ' .. bagItems[i].name .. '\n'
           end
           simulationcraftProfile = simulationcraftProfile .. '# ' .. bagItems[i].string .. '\n'
-        else
-          local name = bagItems[i].name or ('Item ' .. i)
+        elseif simBags == true then
+          local name = bagItems[i].name or ('Bagitem ' .. i)
+          simulationcraftProfile = simulationcraftProfile .. '#\n'
           simulationcraftProfile = simulationcraftProfile .. 'copy="' .. gsub(name, ',', '') .. '",' .. playerName .. '\n'
           simulationcraftProfile = simulationcraftProfile .. '' .. bagItems[i].string .. '\n'
         end
