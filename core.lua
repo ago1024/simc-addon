@@ -853,9 +853,25 @@ function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, links)
           if itemEquipLoc ~= "" then
             local itemLink = WeeklyRewards.GetItemHyperlink(rewardInfo.itemDBID)
             local slotNum = Simulationcraft.invTypeToSlotNum[itemEquipLoc]
-            simulationcraftProfile = simulationcraftProfile .. '#\n'
-            simulationcraftProfile = simulationcraftProfile .. '# ' .. itemName .. '\n'
-            simulationcraftProfile = simulationcraftProfile .. '# ' .. GetItemStringFromItemLink(slotNum, itemLink, nil, debugOutput) .. "\n"
+            if simBags == false then
+              simulationcraftProfile = simulationcraftProfile .. '#\n'
+              simulationcraftProfile = simulationcraftProfile .. '# ' .. itemName .. '\n'
+              simulationcraftProfile = simulationcraftProfile .. '# ' .. GetItemStringFromItemLink(slotNum, itemLink, nil, debugOutput) .. "\n"
+            else
+              local slots = { slotNum }
+              if slotNum == 13 or slotNum == 15 then
+                slots = { slotNum, slotNum + 1 }
+              end
+              for k,slotNum in ipairs(slots) do
+                local altText = ''
+                if k ~= 1 then
+                  altText = ' slot ' .. k
+                end
+                simulationcraftProfile = simulationcraftProfile .. '#\n'
+                simulationcraftProfile = simulationcraftProfile .. 'copy="' .. gsub(itemName, ',', '') .. altText .. '",' .. playerName .. '\n'
+                simulationcraftProfile = simulationcraftProfile .. GetItemStringFromItemLink(slotNum, itemLink, nil, debugOutput) .. "\n"
+              end
+            end
           end
         end
       end
@@ -870,9 +886,25 @@ function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, links)
       local name,_,_,_,_,_,_,_,invType = GetItemInfo(v)
       if name and invType ~= "" then
         local slotNum = Simulationcraft.invTypeToSlotNum[invType]
-        simulationcraftProfile = simulationcraftProfile .. '#\n'
-        simulationcraftProfile = simulationcraftProfile .. '# ' .. name .. '\n'
-        simulationcraftProfile = simulationcraftProfile .. '# ' .. GetItemStringFromItemLink(slotNum, v, nil, debugOutput) .. "\n"
+        if simBags == false then
+          simulationcraftProfile = simulationcraftProfile .. '#\n'
+          simulationcraftProfile = simulationcraftProfile .. '# ' .. name .. '\n'
+          simulationcraftProfile = simulationcraftProfile .. '# ' .. GetItemStringFromItemLink(slotNum, v, nil, debugOutput) .. "\n"
+        else
+          local slots = { slotNum }
+          if slotNum == 13 or slotNum == 15 then
+            slots = { slotNum, slotNum + 1 }
+          end
+          for k,slotNum in ipairs(slots) do
+            local altText = ''
+            if k ~= 1 then
+              altText = ' slot ' .. k
+            end
+            simulationcraftProfile = simulationcraftProfile .. '#\n'
+            simulationcraftProfile = simulationcraftProfile .. 'copy="' .. gsub(name, ',', '') .. altText .. '",' .. playerName .. '\n'
+            simulationcraftProfile = simulationcraftProfile .. GetItemStringFromItemLink(slotNum, v, nil, debugOutput) .. "\n"
+          end
+        end
       else -- Someone linked something that was not gear.
         simcPrintError = "Error: " .. v .. " is not gear."
         break
