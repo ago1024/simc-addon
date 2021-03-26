@@ -121,6 +121,7 @@ function Simulationcraft:HandleChatCommand(input)
   local debugOutput = false
   local noBags = false
   local simBags = false;
+  local showMerchant = false
   local links = getLinks(input)
 
   for _, arg in ipairs(args) do
@@ -130,6 +131,8 @@ function Simulationcraft:HandleChatCommand(input)
       noBags = true
     elseif arg == 'simbag' or arg == 'simbags' or arg == 'sb' then
       simBags = true
+    elseif arg == 'merchant' then
+      showMerchant = true
     elseif arg == 'minimap' then
       self.db.profile.minimap.hide = not self.db.profile.minimap.hide
       DEFAULT_CHAT_FRAME:AddMessage("SimulationCraft: Minimap button is now " .. (self.db.profile.minimap.hide and "hidden" or "shown"))
@@ -138,7 +141,7 @@ function Simulationcraft:HandleChatCommand(input)
     end
   end
 
-  self:PrintSimcProfile(debugOutput, noBags, simBags, links)
+  self:PrintSimcProfile(debugOutput, noBags, simBags, showMerchant, links)
 end
 
 
@@ -380,7 +383,7 @@ local function GetItemStringFromItemLink(slotNum, itemLink, itemLoc, debugOutput
   if debugOutput then
     itemStr = itemStr .. '# ' .. gsub(itemLink, "\124", "\124\124") .. '\n'
   end
-  itemStr = itemStr .. simcSlotNames[slotNum] .. "=" .. table.concat(simcItemOptions, ',')
+  itemStr = itemStr .. (simcSlotNames[slotNum] or 'unknown') .. "=" .. table.concat(simcItemOptions, ',')
 
   return itemStr
 end
@@ -646,7 +649,7 @@ function Simulationcraft:GetMainFrame(text)
 end
 
 -- This is the workhorse function that constructs the profile
-function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, links)
+function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, showMerchant, links)
   -- addon metadata
   local versionComment = '# SimC Addon ' .. GetAddOnMetadata('Simulationcraft', 'Version')
   local simcVersionWarning = '# Requires SimulationCraft 901-01 or newer'
@@ -850,33 +853,66 @@ function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, links)
       for i, activityInfo in ipairs(activities) do
         for j, rewardInfo in ipairs(activityInfo.rewards) do
           local itemName, _, _, _, _, _, _, _, itemEquipLoc = GetItemInfo(rewardInfo.id);
-          if itemEquipLoc ~= "" then
-            local itemLink = WeeklyRewards.GetItemHyperlink(rewardInfo.itemDBID)
-            local slotNum = Simulationcraft.invTypeToSlotNum[itemEquipLoc]
-            if simBags == false then
-              simulationcraftProfile = simulationcraftProfile .. '#\n'
-              simulationcraftProfile = simulationcraftProfile .. '# ' .. itemName .. '\n'
-              simulationcraftProfile = simulationcraftProfile .. '# ' .. GetItemStringFromItemLink(slotNum, itemLink, nil, debugOutput) .. "\n"
-            else
-              local slots = { slotNum }
-              if slotNum == 13 or slotNum == 15 then
-                slots = { slotNum, slotNum + 1 }
-              end
-              for k,slotNum in ipairs(slots) do
-                local altText = ''
-                if k ~= 1 then
-                  altText = ' slot ' .. k
-                end
+          local itemLink = WeeklyRewards.GetItemHyperlink(rewardInfo.itemDBID)
+          if itemName then
+            if itemEquipLoc ~= "" then
+              local slotNum = Simulationcraft.invTypeToSlotNum[itemEquipLoc]
+              if simBags == false then
                 simulationcraftProfile = simulationcraftProfile .. '#\n'
-                simulationcraftProfile = simulationcraftProfile .. 'copy="' .. gsub(itemName, ',', '') .. altText .. '",' .. playerName .. '\n'
-                simulationcraftProfile = simulationcraftProfile .. GetItemStringFromItemLink(slotNum, itemLink, nil, debugOutput) .. "\n"
+                simulationcraftProfile = simulationcraftProfile .. '# ' .. itemName .. '\n'
+                simulationcraftProfile = simulationcraftProfile .. '# ' .. GetItemStringFromItemLink(slotNum, itemLink, nil, debugOutput) .. "\n"
+              else
+                local slots = { slotNum }
+                if slotNum == 13 or slotNum == 15 then
+                  slots = { slotNum, slotNum + 1 }
+                end
+                for k,slotNum in ipairs(slots) do
+                  local altText = ''
+                  if k ~= 1 then
+                  altText = ' slot ' .. k
+                  end
+                  simulationcraftProfile = simulationcraftProfile .. '#\n'
+                  simulationcraftProfile = simulationcraftProfile .. 'copy="' .. gsub(itemName, ',', '') .. altText .. '",' .. playerName .. '\n'
+                  simulationcraftProfile = simulationcraftProfile .. GetItemStringFromItemLink(slotNum, itemLink, nil, debugOutput) .. "\n"
+                end
+              end
+            else
+              local name, _, _, baseItemLevel, _, class, subclass, _, _, _, _, classId, subClassId = GetItemInfo(itemLink)
+              -- Shadowlands weapon tokens
+              if classId == 5 and subClassId == 2 then
+                local level, _, _ = GetDetailedItemLevelInfo(itemLink)
+                simulationcraftProfile = simulationcraftProfile .. '#\n'
+                simulationcraftProfile = simulationcraftProfile .. '# ' .. itemName .. ' ' .. (level or '') .. '\n'
+                simulationcraftProfile = simulationcraftProfile .. '# ' .. GetItemStringFromItemLink(nil, itemLink, nil, debugOutput) .. "\n"
               end
             end
+          else
+            print("Warning: SimC was unable to retrieve an item name from your Great Vault, try again")
           end
         end
       end
     end
   end
+
+  -- Dump out equippable items from a vendor, this is mostly for debugging / data collection
+  local numMerchantItems = GetMerchantNumItems()
+  if showMerchant and numMerchantItems > 0 then
+    simulationcraftProfile = simulationcraftProfile .. '\n'
+    simulationcraftProfile = simulationcraftProfile .. '\n### Merchant items\n'
+    for i=1,numMerchantItems do
+      local link = GetMerchantItemLink(i)
+      local name,_,_,_,_,_,_,_,invType = GetItemInfo(link)
+      if name and invType ~= "" then
+        local slotNum = Simulationcraft.invTypeToSlotNum[invType]
+        -- Doesn't work, seems to always return base item level
+        -- local level, _, _ = GetDetailedItemLevelInfo(itemLink)
+        simulationcraftProfile = simulationcraftProfile .. '#\n'
+        simulationcraftProfile = simulationcraftProfile .. '# ' .. name .. '\n'
+        simulationcraftProfile = simulationcraftProfile .. '# ' .. GetItemStringFromItemLink(slotNum, link, nil, false) .. "\n"
+      end
+    end
+  end
+
 
   -- output item links that were included in the /simc chat line
   if links and #links > 0 then
