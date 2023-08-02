@@ -379,7 +379,8 @@ local function GetExportString(configID)
   if not active then
     -- comment out the talents and then prepend a comment with the loadout name
     str = '# ' .. str
-    str = '# Saved Loadout: ' .. configInfo.name .. '\n' .. str
+    -- Make sure any pipe characters get unescaped, otherwise breaks checksums
+    str = '# Saved Loadout: ' .. configInfo.name:gsub("||", "|") .. '\n' .. str
   end
 
   return str
@@ -1031,7 +1032,7 @@ function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, showMerc
               end
             end
           else
-            print("Warning: SimC was unable to retrieve an item name from your Great Vault, try again")
+            print("Warning: SimC was unable to retrieve info for item " .. rewardInfo.id .. " from your Great Vault, try again")
           end
         end
       end
