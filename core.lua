@@ -164,6 +164,25 @@ function Simulationcraft:HandleChatCommand(input)
   self:PrintSimcProfile(debugOutput, noBags, simBags, showMerchant, links)
 end
 
+local function GetAltSlots(slotNum)
+  local slots = { slotNum }
+  if slotNum == 13 or slotNum == 15 then
+    slots = { slotNum, slotNum + 1 }
+  end
+  return slots
+end
+
+local function GetAltText(k)
+  local altText = ''
+  if k ~= 1 then
+    altText = ' slot ' .. k
+  end
+  return altText
+end
+
+local function GetCopy(itemName, altText, playerName)
+  return 'copy="' .. gsub(itemName, ',', '') .. altText .. '",' .. playerName
+end
 
 local function GetItemSplit(itemLink)
   local itemString = string.match(itemLink, "item:([%-?%d:]+)")
@@ -572,16 +591,11 @@ function Simulationcraft:GetBagItemStrings(debugOutput)
           local itemLink = C_Container.GetContainerItemLink(bag, slot)
           local itemName = GetItemName(itemLink)
           local level, _, _ = GetDetailedItemLevelInfo(itemLink)
-          local slots = { slotNum }
-          if slotNum == 13 or slotNum == 15 then
-            slots = { slotNum, slotNum + 1 }
-          end
+          local slots = GetAltSlots(slotNum)
           for i,slotNum in ipairs(slots) do
-            local altText = ''
-            if i ~= 1 then
-              altText = ' slot ' .. i
-            end
+            local altText = GetAltText(i)
             bagItems[#bagItems + 1] = {
+              slotNum = slotNum,
               slot2 = i ~= 1,
               string = GetItemStringFromItemLink(slotNum, itemLink, debugOutput)
             }
@@ -943,7 +957,7 @@ function Simulationcraft:GetSimcProfile(debugOutput, noBags, simBags, showMercha
         elseif simBags == true then
           local name = bagItems[i].name or ('Bagitem ' .. i)
           simulationcraftProfile = simulationcraftProfile .. '#\n'
-          simulationcraftProfile = simulationcraftProfile .. 'copy="' .. gsub(name, ',', '') .. '",' .. playerName .. '\n'
+          simulationcraftProfile = simulationcraftProfile .. GetCopy(name, '', playerName) .. '\n'
           simulationcraftProfile = simulationcraftProfile .. '' .. bagItems[i].string .. '\n'
         end
       end
@@ -962,15 +976,23 @@ function Simulationcraft:GetSimcProfile(debugOutput, noBags, simBags, showMercha
           local itemLink = WeeklyRewards.GetItemHyperlink(rewardInfo.itemDBID)
           local itemName = GetItemName(itemLink);
           local slotNum = Simulationcraft.invTypeToSlotNum[itemEquipLoc]
-          if slotNum then
+          if slotNum and simBags == false then
             local itemStr = GetItemStringFromItemLink(slotNum, itemLink, debugOutput)
             local level, _, _ = GetDetailedItemLevelInfo(itemLink)
             simulationcraftProfile = simulationcraftProfile .. '#\n'
             if itemName and level then
-              itemNameComment = itemName .. ' ' .. '(' .. level .. ')'
+              local itemNameComment = itemName .. ' ' .. '(' .. level .. ')'
               simulationcraftProfile = simulationcraftProfile .. '# ' .. itemNameComment .. '\n'
             end
             simulationcraftProfile = simulationcraftProfile .. '# ' .. itemStr .. "\n"
+          elseif slotNum and simBags == true then
+            local slots = GetAltSlots(slotNum)
+            for k,slotNum in ipairs(slots) do
+              local altText = GetAltText(k)
+              simulationcraftProfile = simulationcraftProfile .. '#\n'
+              simulationcraftProfile = simulationcraftProfile .. GetCopy(itemName, altText, playerName) .. '\n'
+              simulationcraftProfile = simulationcraftProfile .. GetItemStringFromItemLink(slotNum, itemLink, nil, debugOutput) .. "\n"
+            end
           end
         end
       end
@@ -1015,17 +1037,11 @@ function Simulationcraft:GetSimcProfile(debugOutput, noBags, simBags, showMercha
           simulationcraftProfile = simulationcraftProfile .. '# ' .. name .. '\n'
           simulationcraftProfile = simulationcraftProfile .. '# ' .. GetItemStringFromItemLink(slotNum, v, debugOutput) .. "\n"
         else
-          local slots = { slotNum }
-          if slotNum == 13 or slotNum == 15 then
-            slots = { slotNum, slotNum + 1 }
-          end
+          local slots = GetAltSlots(slotNum)
           for k,slotNum in ipairs(slots) do
-            local altText = ''
-            if k ~= 1 then
-              altText = ' slot ' .. k
-            end
+            local altText = GetAltText(k)
             simulationcraftProfile = simulationcraftProfile .. '#\n'
-            simulationcraftProfile = simulationcraftProfile .. 'copy="' .. gsub(name, ',', '') .. altText .. '",' .. playerName .. '\n'
+            simulationcraftProfile = simulationcraftProfile .. GetCopy(name, altText, playerName) .. '\n'
             simulationcraftProfile = simulationcraftProfile .. GetItemStringFromItemLink(slotNum, v, debugOutput) .. "\n"
           end
         end
