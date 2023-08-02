@@ -83,7 +83,7 @@ function Simulationcraft:OnInitialize()
   self.db = LibStub("AceDB-3.0"):New("SimulationCraftDB", {
     profile = {
       minimap = {
-        hide = true,
+        hide = false,
       },
       frame = {
         point = "CENTER",
@@ -179,6 +179,18 @@ local function GetItemSplit(itemLink)
   end
 
   return itemSplit
+end
+
+local function GetItemName(itemLink)
+  local name = string.match(itemLink, '|h%[(.*)%]|')
+  local removeIcons = gsub(name, '|%a.+|%a', '')
+  local trimmed = string.match(removeIcons, '^%s*(.*)%s*$')
+  -- check for empty string or only spaces
+  if string.match(trimmed, '^%s*$') then
+    return nil
+  end
+
+  return trimmed
 end
 
 -- char size for utf8 strings
@@ -516,7 +528,8 @@ function Simulationcraft:GetItemStrings(debugOutput)
 
     -- if we don't have an item link, we don't care
     if itemLink then
-      local name = GetItemInfo(itemLink)
+      -- In theory, this should always be loaded/cached
+      local name = GetItemName(itemLink)
 
       -- get correct level for scaling gear
       local level, _, _ = GetDetailedItemLevelInfo(itemLink)
@@ -536,86 +549,51 @@ function Simulationcraft:GetItemStrings(debugOutput)
   return items
 end
 
+-- Iterate through all container slots looking for gear that can be equipped.
+-- Item name and item level may not be available if other addons are causing lookups to be throttled but
+-- item links and IDs should always be available
 function Simulationcraft:GetBagItemStrings(debugOutput)
   local bagItems = {}
 
-  for slotNum=1, #slotNames do
-    local slotName = slotNames[slotNum]
-    -- Ignore "double" slots, results in doubled output which isn't useful
-    if slotName and slotName ~= 'Trinket1Slot' and slotName ~= 'Finger1Slot' then
-      local slotItems = {}
-      local slotId, _, _ = GetInventorySlotInfo(slotNames[slotNum])
-      GetInventoryItemsForSlot(slotId, slotItems)
-      for locationBitstring, _ in pairs(slotItems) do
-        local _, bank, bags, _, slot, bag = EquipmentManager_UnpackLocation(locationBitstring)
-        if ItemLocation then
-          if bag == nil then
-            -- this is a default bank slot (not a bank bag). these exist on the character equipment, not a bag
-            itemLoc = ItemLocation:CreateFromEquipmentSlot(slot)
-          else
-            itemLoc = ItemLocation:CreateFromBagAndSlot(bag, slot)
+  for bag=0, NUM_BANKBAGSLOTS do
+    for slot=1, C_Container.GetContainerNumSlots(bag) do
+      local itemId = C_Container.GetContainerItemID(bag, slot)
+
+      -- something is in the bag slot
+      if itemId then
+        local _, _, _, itemEquipLoc = GetItemInfoInstant(itemId)
+        local slotNum = Simulationcraft.invTypeToSlotNum[itemEquipLoc]
+
+        -- item can be equipped
+        if slotNum then
+          local info = C_Container.GetContainerItemInfo(bag, slot)
+          local itemLink = C_Container.GetContainerItemLink(bag, slot)
+          local itemName = GetItemName(itemLink)
+          local level, _, _ = GetDetailedItemLevelInfo(itemLink)
+          local slots = { slotNum }
+          if slotNum == 13 or slotNum == 15 then
+            slots = { slotNum, slotNum + 1 }
           end
-        end
-        if bags or bank then
-          local container
-          if bags then
-            container = bag
-          elseif bank then
-            -- Default bank slots (the innate ones, not ones from bags-in-the-bank) are weird
-            -- slot starts at 39, I believe that is based on some older location values
-            -- GetContainerItemInfo uses a 0-based slot index
-            -- So take the slot from the unpack and subtract 39 to get the right index for GetContainerItemInfo.
-            --
-            -- 2018/01/17 - Change magic number to 47 to account for new backpack slots. Not sure why it went up by 8
-            -- instead of 4, possible blizz is leaving the door open to more expansion in the future?
-            --
-            -- 2020/01/24 - Change magic number to 51. Not sure why this changed again but it did! See y'all in 2022?
-            --
-            -- 2022/10/02 - Oh hai, GetContainerItemInfo is no longer global and is now on C_Container. The 2022
-            -- comment above was an actual joke in 2020. And here we are. See y'all in 2024?
-            container = BANK_CONTAINER
-            slot = slot - 51
-          end
-
-          local itemLink
-          if C_Container and C_Container.GetContainerItemLink then
-            -- Dragonflight
-            itemLink = C_Container.GetContainerItemLink(container, slot)
-          else
-            -- Shadowlands
-            local _, _, _, _, _, _, il, _, _, _ = GetContainerItemInfo(container, slot)
-            itemLink = il
-          end
-
-          if itemLink then
-            local name, _, quality, _, _, _, _, _, _, _, _ = GetItemInfo(itemLink)
-
-            -- get correct level for scaling gear
-            local level, _, _ = GetDetailedItemLevelInfo(itemLink)
-
-            -- find all equippable, non-artifact items
-            if IsEquippableItem(itemLink) and quality ~= 6 then
-              local slots = { slotNum }
-              if slotNum == 13 or slotNum == 15 then
-                slots = { slotNum, slotNum + 1 }
-              end
-              for i,slotNum in ipairs(slots) do
-                local altText = ''
-                if i ~= 1 then
-                  altText = ' slot ' .. i
-                end
-                bagItems[#bagItems + 1] = {
-                  slot2 = i ~= 1,
-                  string = GetItemStringFromItemLink(slotNum, itemLink, debugOutput),
-                  name = name .. (level and ' (' .. level .. ')' or '') .. altText
-                }
-              end
+          for i,slotNum in ipairs(slots) do
+            local altText = ''
+            if i ~= 1 then
+              altText = ' slot ' .. i
+            end
+            bagItems[#bagItems + 1] = {
+              slot2 = i ~= 1,
+              string = GetItemStringFromItemLink(slotNum, itemLink, debugOutput)
+            }
+            if itemName and level then
+              bagItems[#bagItems].name = itemName .. ' (' .. level .. ')' .. altText
             end
           end
         end
       end
     end
   end
+
+  -- order results by paper doll slot, not bag slot
+  table.sort(bagItems, function (a, b) return a.slotNum < b.slotNum end)
 
   return bagItems
 end
@@ -794,8 +772,7 @@ local function adler32(s)
   return (bit.lshift(s2, 16)) + s1
 end --adler32()
 
--- This is the workhorse function that constructs the profile
-function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, showMerchant, links)
+function Simulationcraft:GetSimcProfile(debugOutput, noBags, simBags, showMerchant, links)
   -- addon metadata
   local versionComment = '# SimC Addon ' .. GetAddOnMetadata('Simulationcraft', 'Version')
   local wowVersion, wowBuild, _, wowToc = GetBuildInfo()
@@ -938,7 +915,11 @@ function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, showMerc
 
   -- output gear
   for slotNum=1, #slotNames do
-    if items[slotNum] then
+    local item = items[slotNum]
+    if item then
+      if item.name then
+        simulationcraftProfile = simulationcraftProfile .. '# ' .. item.name .. '\n'
+      end
       simulationcraftProfile = simulationcraftProfile .. items[slotNum].string .. '\n'
     end
   end
@@ -975,46 +956,24 @@ function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, showMerc
       local activities = WeeklyRewards.GetActivities()
       for _, activityInfo in ipairs(activities) do
         for _, rewardInfo in ipairs(activityInfo.rewards) do
-          local itemName, _, _, _, _, _, _, _, itemEquipLoc = GetItemInfo(rewardInfo.id);
+          local _, _, _, itemEquipLoc = GetItemInfoInstant(rewardInfo.id)
           local itemLink = WeeklyRewards.GetItemHyperlink(rewardInfo.itemDBID)
-          if itemName then
-            if itemEquipLoc ~= "" then
-              local slotNum = Simulationcraft.invTypeToSlotNum[itemEquipLoc]
-              if simBags == false then
-                simulationcraftProfile = simulationcraftProfile .. '#\n'
-                simulationcraftProfile = simulationcraftProfile .. '# ' .. itemName .. '\n'
-                simulationcraftProfile = simulationcraftProfile .. '# ' .. GetItemStringFromItemLink(slotNum, itemLink, debugOutput) .. "\n"
-              else
-                local slots = { slotNum }
-                if slotNum == 13 or slotNum == 15 then
-                  slots = { slotNum, slotNum + 1 }
-                end
-                for k,slotNum in ipairs(slots) do
-                  local altText = ''
-                  if k ~= 1 then
-                  altText = ' slot ' .. k
-                  end
-                  simulationcraftProfile = simulationcraftProfile .. '#\n'
-                  simulationcraftProfile = simulationcraftProfile .. 'copy="' .. gsub(itemName, ',', '') .. altText .. '",' .. playerName .. '\n'
-                  simulationcraftProfile = simulationcraftProfile .. GetItemStringFromItemLink(slotNum, itemLink, debugOutput) .. "\n"
-                end
-              end
-            else
-              local _, _, _, _, _, _, _, _, _, _, _, classId, subClassId = GetItemInfo(itemLink)
-              -- Shadowlands weapon tokens
-              if classId == 5 and subClassId == 2 then
-                local level, _, _ = GetDetailedItemLevelInfo(itemLink)
-                local itemStr = GetItemStringFromItemLink(nil, itemLink, debugOutput)
-                simulationcraftProfile = simulationcraftProfile .. '#\n'
-                simulationcraftProfile = simulationcraftProfile .. '# ' .. itemName .. ' ' .. (level or '') .. '\n'
-                simulationcraftProfile = simulationcraftProfile .. '# ' .. itemStr .. "\n"
-              end
+          local itemName = GetItemName(itemLink);
+          local slotNum = Simulationcraft.invTypeToSlotNum[itemEquipLoc]
+          if slotNum then
+            local itemStr = GetItemStringFromItemLink(slotNum, itemLink, debugOutput)
+            local level, _, _ = GetDetailedItemLevelInfo(itemLink)
+            simulationcraftProfile = simulationcraftProfile .. '#\n'
+            if itemName and level then
+              itemNameComment = itemName .. ' ' .. '(' .. level .. ')'
+              simulationcraftProfile = simulationcraftProfile .. '# ' .. itemNameComment .. '\n'
             end
-          else
-            print("Warning: SimC was unable to retrieve info for item " .. rewardInfo.id .. " from your Great Vault, try again")
+            simulationcraftProfile = simulationcraftProfile .. '# ' .. itemStr .. "\n"
           end
         end
       end
+      simulationcraftProfile = simulationcraftProfile .. '#\n'
+      simulationcraftProfile = simulationcraftProfile .. '### End of Weekly Reward Choices\n'
     end
   end
 
@@ -1032,7 +991,9 @@ function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, showMerc
         -- local level, _, _ = GetDetailedItemLevelInfo(itemLink)
         local itemStr = GetItemStringFromItemLink(slotNum, link, false)
         simulationcraftProfile = simulationcraftProfile .. '#\n'
-        simulationcraftProfile = simulationcraftProfile .. '# ' .. name .. '\n'
+        if name then
+          simulationcraftProfile = simulationcraftProfile .. '# ' .. name .. '\n'
+        end
         simulationcraftProfile = simulationcraftProfile .. '# ' .. itemStr .. "\n"
       end
     end
@@ -1098,6 +1059,12 @@ function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, showMerc
 
   simulationcraftProfile = simulationcraftProfile .. '# Checksum: ' .. string.format('%x', checksum)
 
+  return simulationcraftProfile
+end
+
+-- This is the workhorse function that constructs the profile
+function Simulationcraft:PrintSimcProfile(debugOutput, noBags, showMerchant, links)
+  local simulationcraftProfile = Simulationcraft:GetSimcProfile(debugOutput, noBags, showMerchant, links)
 
   local f = Simulationcraft:GetMainFrame(simcPrintError or simulationcraftProfile)
   f:Show()
