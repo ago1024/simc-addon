@@ -555,7 +555,9 @@ end
 function Simulationcraft:GetBagItemStrings(debugOutput)
   local bagItems = {}
 
-  for bag=0, NUM_TOTAL_EQUIPPED_BAG_SLOTS + NUM_BANKBAGSLOTS do
+  -- https://wowpedia.fandom.com/wiki/BagID
+  -- Bag indexes are a pain, need to start in the negatives to check everything (like the default bank container)
+  for bag=BACKPACK_CONTAINER - ITEM_INVENTORY_BANK_BAG_OFFSET, NUM_TOTAL_EQUIPPED_BAG_SLOTS + NUM_BANKBAGSLOTS do
     for slot=1, C_Container.GetContainerNumSlots(bag) do
       local itemId = C_Container.GetContainerItemID(bag, slot)
 
@@ -1059,12 +1061,12 @@ function Simulationcraft:GetSimcProfile(debugOutput, noBags, simBags, showMercha
 
   simulationcraftProfile = simulationcraftProfile .. '# Checksum: ' .. string.format('%x', checksum)
 
-  return simulationcraftProfile
+  return simulationcraftProfile, simcPrintError
 end
 
 -- This is the workhorse function that constructs the profile
 function Simulationcraft:PrintSimcProfile(debugOutput, noBags, showMerchant, links)
-  local simulationcraftProfile = Simulationcraft:GetSimcProfile(debugOutput, noBags, showMerchant, links)
+  local simulationcraftProfile, simcPrintError = Simulationcraft:GetSimcProfile(debugOutput, noBags, showMerchant, links)
 
   local f = Simulationcraft:GetMainFrame(simcPrintError or simulationcraftProfile)
   f:Show()
