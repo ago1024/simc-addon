@@ -985,12 +985,13 @@ function Simulationcraft:GetSimcProfile(debugOutput, noBags, simBags, showMercha
               simulationcraftProfile = simulationcraftProfile .. '# ' .. itemNameComment .. '\n'
             end
             simulationcraftProfile = simulationcraftProfile .. '# ' .. itemStr .. "\n"
-          elseif slotNum and simBags == true then
+          elseif itemName and slotNum and simBags == true then
+            local level, _, _ = GetDetailedItemLevelInfo(itemLink)
             local slots = GetAltSlots(slotNum)
             for k,slotNum in ipairs(slots) do
               local altText = GetAltText(k)
               simulationcraftProfile = simulationcraftProfile .. '#\n'
-              simulationcraftProfile = simulationcraftProfile .. GetCopy(itemName, altText, playerName) .. '\n'
+              simulationcraftProfile = simulationcraftProfile .. GetCopy(itemName .. ' (' .. level .. ')', altText, playerName) .. '\n'
               simulationcraftProfile = simulationcraftProfile .. GetItemStringFromItemLink(slotNum, itemLink, nil, debugOutput) .. "\n"
             end
           end
