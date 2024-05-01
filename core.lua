@@ -16,7 +16,7 @@ SimcLDB = LibStub("LibDataBroker-1.1"):NewDataObject("SimulationCraft", {
     if SimcFrame and SimcFrame:IsShown() then
       SimcFrame:Hide()
     else
-      Simulationcraft:PrintSimcProfile(false, false, false)
+      Simulationcraft:PrintSimcProfile(false, false, false, false)
     end
   end,
   OnTooltipShow = function(tt)
@@ -109,7 +109,7 @@ function Simulationcraft:OnInitialize()
     icon = "Interface\\AddOns\\SimulationCraft\\logo",
     notCheckable = true,
     func = function()
-      Simulationcraft:PrintSimcProfile(false, false, false)
+      Simulationcraft:PrintSimcProfile(false, false, false, false)
     end,
   })
 end
@@ -1088,8 +1088,8 @@ function Simulationcraft:GetSimcProfile(debugOutput, noBags, simBags, showMercha
 end
 
 -- This is the workhorse function that constructs the profile
-function Simulationcraft:PrintSimcProfile(debugOutput, noBags, showMerchant, links)
-  local simulationcraftProfile, simcPrintError = Simulationcraft:GetSimcProfile(debugOutput, noBags, showMerchant, links)
+function Simulationcraft:PrintSimcProfile(debugOutput, noBags, simBags, showMerchant, links)
+  local simulationcraftProfile, simcPrintError = Simulationcraft:GetSimcProfile(debugOutput, noBags, simBags, showMerchant, links)
 
   local f = Simulationcraft:GetMainFrame(simcPrintError or simulationcraftProfile)
   f:Show()
