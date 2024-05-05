@@ -1018,14 +1018,24 @@ function Simulationcraft:GetSimcProfile(debugOutput, noBags, simBags, showMercha
       local name,_,_,_,_,_,_,_,invType = GetItemInfo(link)
       if name and invType ~= "" then
         local slotNum = Simulationcraft.invTypeToSlotNum[invType]
-        -- Doesn't work, seems to always return base item level
-        -- local level, _, _ = GetDetailedItemLevelInfo(itemLink)
-        local itemStr = GetItemStringFromItemLink(slotNum, link, false)
-        simulationcraftProfile = simulationcraftProfile .. '#\n'
-        if name then
-          simulationcraftProfile = simulationcraftProfile .. '# ' .. name .. '\n'
+        if simBags == false then
+          -- Doesn't work, seems to always return base item level
+          -- local level, _, _ = GetDetailedItemLevelInfo(itemLink)
+          local itemStr = GetItemStringFromItemLink(slotNum, link, false)
+          simulationcraftProfile = simulationcraftProfile .. '#\n'
+          if name then
+            simulationcraftProfile = simulationcraftProfile .. '# ' .. name .. '\n'
+          end
+          simulationcraftProfile = simulationcraftProfile .. '# ' .. itemStr .. "\n"
+        else
+          local slots = GetAltSlots(slotNum)
+          for k,slotNum in ipairs(slots) do
+            local altText = GetAltText(k)
+            simulationcraftProfile = simulationcraftProfile .. '#\n'
+            simulationcraftProfile = simulationcraftProfile .. GetCopy(name, altText, playerName) .. '\n'
+            simulationcraftProfile = simulationcraftProfile .. GetItemStringFromItemLink(slotNum, link, false) .. "\n"
+          end
         end
-        simulationcraftProfile = simulationcraftProfile .. '# ' .. itemStr .. "\n"
       end
     end
   end
